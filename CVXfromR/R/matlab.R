@@ -35,7 +35,8 @@ CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.tem
       input.name <- names(inputs)[i]
       if (!is.numeric(inputs[[i]]))
         stop(sprintf("All inputs must be numeric! (check %s)", input.name))
-      file <- sprintf("temp_in_%s.txt", input.name)
+      ## file <- sprintf("temp_in_%s.txt", input.name)
+      file <- tempfile(pattern=paste0(input.name, '_'), fileext='.txt')      
       write.table(inputs[[i]],
                   file=file,
                   row.names=FALSE,
@@ -50,7 +51,8 @@ CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.tem
   if (!is.null(output.names)) {
     for (out in output.names) {
       # form matlab expression to write output variables to file:
-      file <- sprintf("temp_out_%s.txt", out)
+      file <- tempfile(pattern=paste0(out, '_'), fileext='.txt')            
+      ## file <- sprintf("temp_out_%s.txt", out)
       after <- sprintf("%s dlmwrite('%s', full(%s), 'precision', '%s10.10f');",
                        after, file, out, "%")
       outfiles <- c(outfiles, file)
