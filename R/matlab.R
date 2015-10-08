@@ -139,7 +139,7 @@ CallCVX <- function(cvx.code, const.vars, opt.var.names, setup.dir=NULL, norun=F
              matlab.call=matlab.call, unique.string=unique.string)
 }
 
-CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names, setup.dir=NULL, norun=FALSE, matlab.call="matlab", cvx.modifiers=NULL) {
+CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names, setup.dir=NULL, norun=FALSE, matlab.call="matlab", cvx.modifiers=NULL, unique.string="") {
   # Simple R interface to CVX.  Allows a sequence of problems to be solved where a single scalar parameter
   #   is varied, but otherwise the problems are identical.
   #
@@ -160,6 +160,10 @@ CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names,
   #               even if this is the alias in your default shell, "system" might use a different shell
   #               in which "matlab" is not recognized.
   #  cvx.modifiers: optional string of modifiers passed to CVX on same line as cvx_begin. E.g. "quiet" or "sdp".
+  #  unique.string: a character string added to temporary files. This is necessary if running
+  #                 in parallel (for example with parallel::mclapply) since the
+  #                 base::tempfile function may not produce unique file names otherwise.
+  #                 see help(tempfile)
   #
   #  # Returns:
   #   cvx_optval (as returned by CVX), a sequence of optimal points found by CVX, and the total time to solve all problems.
@@ -198,7 +202,8 @@ CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names,
   }
   cvx <- CallMatlab(matlab.code,
              inputs=const.vars,
-             output.names=c(output.names, "time"), norun=norun, matlab.call=matlab.call)
+                    output.names=c(output.names, "time"), norun=norun,
+                    matlab.call=matlab.call, unique.string=unique.string)
   if (norun) return(cvx)
   cvx2 <- list()
   for (out in opt.var.names) {
