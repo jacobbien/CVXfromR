@@ -5,7 +5,7 @@
 # 
 # See examples.R for usage of these functions.
 
-CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.temp=TRUE, norun=FALSE, matlab.call="matlab") {
+CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.temp=TRUE, norun=FALSE, matlab.call="matlab", unique.string="") {
   # function that executes Matlab code
   #
   # Args:
@@ -21,6 +21,11 @@ CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.tem
   #  matlab.call: how Matlab can be invoked through "system" command.  Default: "matlab" but
   #               even if this is the alias in your default shell, "system" might use a different shell
   #               in which "matlab" is not recognized.
+  #  unique.string: a character string added to temporary files. This is necessary if running
+  #                 in parallel (for example with parallel::mclapply) since the
+  #                 base::tempfile function may not produce unique file names otherwise.
+  #                 see help(tempfile)
+  #
   #
   # Returns:
   #   outputs: list containing all variables that were listed in output.names
@@ -36,7 +41,8 @@ CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.tem
       if (!is.numeric(inputs[[i]]))
         stop(sprintf("All inputs must be numeric! (check %s)", input.name))
       ## file <- sprintf("temp_in_%s.txt", input.name)
-      file <- tempfile(pattern=paste0(input.name, '_'), fileext='.txt')      
+      file <- tempfile(pattern=sprintf("temp_in_%s_%s.txt", input.name, unique.string),
+                       fileext='.txt')      
       write.table(inputs[[i]],
                   file=file,
                   row.names=FALSE,
@@ -51,8 +57,9 @@ CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.tem
   if (!is.null(output.names)) {
     for (out in output.names) {
       # form matlab expression to write output variables to file:
-      file <- tempfile(pattern=paste0(out, '_'), fileext='.txt')            
       ## file <- sprintf("temp_out_%s.txt", out)
+      file <- tempfile(pattern=sprintf("temp_out_%s_%s.txt", out, unique.string),
+                       fileext='.txt')
       after <- sprintf("%s dlmwrite('%s', full(%s), 'precision', '%s10.10f');",
                        after, file, out, "%")
       outfiles <- c(outfiles, file)
@@ -89,7 +96,7 @@ CallMatlab <- function(matlab.code, inputs=list(), output.names=NULL, delete.tem
 }
 
 CallCVX <- function(cvx.code, const.vars, opt.var.names, setup.dir=NULL, norun=FALSE,
-                    matlab.call="matlab", cvx.modifiers=NULL) {
+                    matlab.call="matlab", cvx.modifiers=NULL, unique.string="") {
   # Simple R interface to CVX.
   #
   # Args:
@@ -103,6 +110,11 @@ CallCVX <- function(cvx.code, const.vars, opt.var.names, setup.dir=NULL, norun=F
   #               even if this is the alias in your default shell, "system" might use a different shell
   #               in which "matlab" is not recognized.
   #  cvx.modifiers: optional string of modifiers passed to CVX on same line as cvx_begin. E.g. "quiet" or "sdp".
+  #  unique.string: a character string added to temporary files. This is necessary if running
+  #                 in parallel (for example with parallel::mclapply) since the
+  #                 base::tempfile function may not produce unique file names otherwise.
+  #                 see help(tempfile)
+
   #
   # Returns:
   #   cvx_optval (as returned by CVX) and an optimal point found by CVX
@@ -123,10 +135,11 @@ CallCVX <- function(cvx.code, const.vars, opt.var.names, setup.dir=NULL, norun=F
                          setup, cvx.modifiers, cvx.code)
   CallMatlab(matlab.code,
              inputs=const.vars,
-             output.names=c(opt.var.names, "cvx_optval", "time"), norun=norun, matlab.call=matlab.call)
+             output.names=c(opt.var.names, "cvx_optval", "time"), norun=norun,
+             matlab.call=matlab.call, unique.string=unique.string)
 }
 
-CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names, setup.dir=NULL, norun=FALSE, matlab.call="matlab", cvx.modifiers=NULL) {
+CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names, setup.dir=NULL, norun=FALSE, matlab.call="matlab", cvx.modifiers=NULL, unique.string="") {
   # Simple R interface to CVX.  Allows a sequence of problems to be solved where a single scalar parameter
   #   is varied, but otherwise the problems are identical.
   #
@@ -147,6 +160,10 @@ CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names,
   #               even if this is the alias in your default shell, "system" might use a different shell
   #               in which "matlab" is not recognized.
   #  cvx.modifiers: optional string of modifiers passed to CVX on same line as cvx_begin. E.g. "quiet" or "sdp".
+  #  unique.string: a character string added to temporary files. This is necessary if running
+  #                 in parallel (for example with parallel::mclapply) since the
+  #                 base::tempfile function may not produce unique file names otherwise.
+  #                 see help(tempfile)
   #
   #  # Returns:
   #   cvx_optval (as returned by CVX), a sequence of optimal points found by CVX, and the total time to solve all problems.
@@ -185,7 +202,8 @@ CallCVX.varyparam <- function(cvx.code, const.vars, tuning.param, opt.var.names,
   }
   cvx <- CallMatlab(matlab.code,
              inputs=const.vars,
-             output.names=c(output.names, "time"), norun=norun, matlab.call=matlab.call)
+                    output.names=c(output.names, "time"), norun=norun,
+                    matlab.call=matlab.call, unique.string=unique.string)
   if (norun) return(cvx)
   cvx2 <- list()
   for (out in opt.var.names) {
